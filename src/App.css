@@ -293,9 +293,24 @@ body {
   background: #f8fafc;
   padding: 1rem;
   border-radius: 0.5rem;
-  white-space: pre-wrap;
   color: #374151;
   font-size: 0.875rem;
+}
+
+.response-content p {
+  margin: 0.5rem 0;
+}
+
+.response-list-item {
+  margin-left: 1.5rem;
+  position: relative;
+}
+
+.response-list-item::before {
+  content: '•';
+  position: absolute;
+  left: -1rem;
+  color: #374151;
 }
 
 .footer {

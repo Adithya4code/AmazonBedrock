@@ -1,17 +1,6 @@
 import React, { useState } from 'react';
-import { BedrockAgentRuntimeClient, RetrieveAndGenerateCommand } from '@aws-sdk/client-bedrock-agent-runtime';
 import { Send, Loader2, Database, Bot, RefreshCw } from 'lucide-react';
 import './App.css';
-import {fromCognitoIdentityPool} from "@aws-sdk/credential-provider-cognito-identity";
-
-// Configure AWS SDK
-const client = new BedrockAgentRuntimeClient({
-    region: 'us-east-1',
-    credentials: fromCognitoIdentityPool({
-        clientConfig: { region: 'us-east-1' },
-        identityPoolId: 'YOUR_IDENTITY_POOL_ID',
-    }),
-});
 
 // Header Component
 const Header = () => (
@@ -104,7 +93,13 @@ const ResponseDisplay = ({ loading, error, response }) => (
                 <span>Generating response...</span>
             </div>
         ) : response ? (
-            <div className="response-content">{response}</div>
+            <div className="response-content">
+                {response.split('\n').map((line, index) => (
+                    <p key={index} className={line.trim().startsWith('-') ? 'response-list-item' : ''}>
+                        {line}
+                    </p>
+                ))}
+            </div>
         ) : (
             <div className="response-empty">Submit a query to see results</div>
         )}
@@ -136,26 +131,18 @@ function App() {
         setResponse('');
 
         try {
-            const command = new RetrieveAndGenerateCommand({
-                input: { text: query },
-                retrieveAndGenerateConfiguration: {
-                    type: 'KNOWLEDGE_BASE',
-                    knowledgeBaseConfiguration: {
-                        knowledgeBaseId: 'YOUR_KNOWLEDGE_BASE_ID', // Replace with your Knowledge Base ID
-                        modelArn: 'arn:aws:bedrock:us-east-1::foundation-model/mistral.mixtral-7b-instruct-v0:2', // Mistral 7B
-                        retrievalConfiguration: {
-                            vectorSearchConfiguration: {
-                                numberOfResults: 5,
-                            },
-                        },
-                    },
-                },
+            const response = await fetch(import.meta.env.VITE_API_GATEWAY_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query }), // Corrected body structure
             });
-
-            const result = await client.send(command);
-            const generatedText = result.output?.text || 'No response generated.';
-            setResponse(generatedText);
-            setHistory((prev) => [...prev, { query, response: generatedText }]);
+            const data = await response.json();
+            if (response.ok) {
+                setResponse(data.response);
+                setHistory((prev) => [...prev, { query, response: data.response }]);
+            } else {
+                setError(data.error || 'Failed to fetch response');
+            }
         } catch (err) {
             console.error(err);
             setError('Error fetching response: ' + err.message);
@@ -163,6 +150,7 @@ function App() {
             setLoading(false);
         }
     };
+
 
     const handleClearHistory = () => {
         setHistory([]);
@@ -188,7 +176,7 @@ function App() {
                     <ResponseDisplay loading={loading} error={error} response={response} />
                 </div>
             </main>
-            {/*<Footer />*/}
+            <Footer />
         </div>
     );
 }
